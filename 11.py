@@ -2,6 +2,8 @@ import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
 from multiprocessing import Pool
+import pandas as pd
+import os
 
 def update(S, k, A):
     return np.prod((1 - np.exp(-k * S)) ** A, axis=1)
@@ -42,18 +44,22 @@ def compute_kc_for_L(args):
             return (L, k)
     return (L, np.nan)
 
-if __name__ == "__main__":  # 必须有
+if __name__ == "__main__":
     L_list = list(range(1, 15))
     m_values = [4]
     k_values = np.linspace(0, 8, 600)
 
     kc_results = {}
 
+    output_dir = "results"
+    os.makedirs(output_dir, exist_ok=True)
+
     for m in m_values:
         print(f"\n==== m = {m} ====")
         args_list = [(L, m, k_values) for L in L_list]
         with Pool() as pool:
             results = pool.map(compute_kc_for_L, args_list)
+
         results.sort()
         kc_list = []
         for L, kc in results:
@@ -61,14 +67,24 @@ if __name__ == "__main__":  # 必须有
             print(f"L={L}, k_c={kc:.5f}")
         kc_results[m] = kc_list
 
-    # 绘图
-    plt.figure(figsize=(8, 5))
-    for m in m_values:
-        plt.plot(L_list, kc_results[m], marker='o', label=f"$m={m}$")
-    plt.xlabel("Tree depth $L$")
-    plt.ylabel("Threshold $k_c$")
-    plt.title("Threshold $k_c$ vs Tree Depth $L$ for Bethe Trees")
-    plt.grid(True)
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
+        # 保存数据为 CSV
+        df = pd.DataFrame({
+            "L": L_list,
+            "k_c": kc_list
+        })
+        df.to_csv(f"{output_dir}/kc_vs_L_m{m}.csv", index=False)
+
+        # 绘图并保存
+        plt.figure(figsize=(8, 5))
+        plt.plot(L_list, kc_list, marker='o', label=f"$m={m}$")
+        plt.xlabel("Tree depth $L$")
+        plt.ylabel("Threshold $k_c$")
+        plt.title(f"Threshold $k_c$ vs Tree Depth $L$ (m={m})")
+        plt.grid(True)
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig(f"{output_dir}/kc_vs_L_m{m}.png", dpi=300)
+        plt.savefig(f"{output_dir}/kc_vs_L_m{m}.pdf")
+        plt.close()
+
+    print("\n所有图像和数据已保存在 results/ 目录。")
